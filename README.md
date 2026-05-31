@@ -24,7 +24,7 @@ This keeps context small and focused. A `review` run loads `SKILL.md` + `workflo
 ## Install
 
 ```bash
-git clone https://github.com/<your-username>/motley-crue-skill.git
+git clone https://github.com/MoistPalone/motley-crue-skill.git
 mkdir -p ~/.claude/skills/motley-crue
 cp motley-crue-skill/SKILL.md ~/.claude/skills/motley-crue/
 cp -r motley-crue-skill/references ~/.claude/skills/motley-crue/
@@ -137,6 +137,51 @@ Read-only agents (reviewer, security, debugger) can work in any worktree. Only c
 /motley-crue off
 ```
 → Generates session brief. Appends wiki session summary. Updates project state.
+
+---
+
+## Smoke Test
+
+Run this sequence on a low-risk project (or a throwaway git repo) before using the skill in production. It exercises dispatch, required outputs, and no-op handling without modifying real project files or writing to your Obsidian vault.
+
+**Setup:**
+```bash
+mkdir /tmp/mc-smoke && cd /tmp/mc-smoke && git init && touch README.md && git add . && git commit -m "init"
+```
+
+Open Claude Code in `/tmp/mc-smoke`, then run:
+
+```
+/motley-crue assess
+```
+**Expected:** SKILL.md dispatches → `workflows/assess.md` loads → assessment report printed → `.claude/motley-crue.local.md` created. No wiki entry written (no wiki configured).
+
+```
+/motley-crue plan "add a hello world script"
+```
+**Expected:** `workflows/plan.md` loads → `specialists/project-architect.md` loads → ADR produced. `references/agent-briefs.md` is NOT loaded.
+
+```
+/motley-crue assign "create hello world script"
+```
+**Expected:** Task assignment document produced and shown for review. Worktree setup offered. No agent spawned until user confirms. Worker handoff explicitly required after completion.
+
+```
+/motley-crue review
+```
+**Expected:** `specialists/code-reviewer.md` loads → closing block printed with files checked. If nothing found: no wiki update written — closing block is the complete record.
+
+```
+/motley-crue brief
+```
+**Expected:** `specialists/handoff-writer.md` loads → ≤400-word handoff block printed → `.claude/motley-crue.local.md` updated with `last_brief` date.
+
+**Pass criteria:**
+- Each command loads only its own workflow + specialist file
+- `references/agent-briefs.md` is never loaded
+- `.claude/motley-crue.local.md` is created after `assess`
+- A clean `review` produces a closing block, not an empty wiki entry
+- `brief` updates `last_brief` in the state file
 
 ---
 

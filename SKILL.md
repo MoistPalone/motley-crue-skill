@@ -1,12 +1,12 @@
 ---
 name: motley-crue
 description: >
-  Use this skill when the user invokes "/motley-crue" or "/mc", or says "bring in
-  the team", "run a code review", "do a security pass", "check performance", "audit
-  dependencies", "write documentation", "find refactor opportunities", "update the wiki",
-  "generate a handoff brief", "start a standup", "assess the project", or "close out the session".
-  Orchestrates specialized sub-agents for full-stack development and project management
-  across any codebase. The team ethos: plan the work, work the plan, over deliver.
+  Use this skill when the user explicitly invokes "/motley-crue" or "/mc" followed by
+  a subcommand: assess, status, standup, portfolio, plan, debug, assign, review, security,
+  perf, deps, refactor, test, docs, brief, off, wiki, or wikiscan.
+  This skill requires deliberate invocation — it should not auto-trigger from casual phrases.
+  Orchestrates specialized sub-agents for full-stack development and project management.
+  The team ethos: plan the work, work the plan, over deliver.
 user-invocable: true
 argument-hint: "assess | plan | assign | brief | wiki | review | security | perf | deps | refactor | test | docs | debug | status | standup | portfolio | wikiscan | off [context]"
 allowed-tools:

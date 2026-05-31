@@ -43,7 +43,7 @@ Parse the subcommand (default: `review`):
 | Project state update | templates/project-state.md | `.claude/motley-crue.local.md` | if blockers identified or systemic risks discovered |
 | Test/doc files written | — | appropriate project directories | `test` and `docs` subcommands only |
 
-**Separate handoff files are not required for review workflows.** The closing block in the specialist report is the portable record. It can be used in a later handoff if needed.
+**Separate handoff files are not required for review workflows.** The closing block in the specialist report is the portable record — attach it directly to any worker handoff or wiki update for this task.
 
 **Wiki update threshold:** Write a wiki update when findings include:
 - Any critical or high severity issue (security, code correctness)

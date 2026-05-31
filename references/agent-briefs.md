@@ -1,10 +1,12 @@
 # Motley Crue — Agent Brief Templates (Legacy Reference)
 
-> **This file is superseded.** Agent briefs have been split into individual specialist files
-> under `references/specialists/`. SKILL.md now references those files directly.
-> This file is retained as a combined reference only. Do not load it as a whole — it is large.
+> **DEPRECATED — do not load during normal operation.**
+> Agent briefs have been split into individual specialist files under `references/specialists/`.
+> SKILL.md references those files directly. This file is retained only as a migration reference
+> and should not be read, loaded, or cited by any workflow or agent prompt.
+> It will be deleted once the v2 structure is confirmed stable.
 >
-> Specialist files:
+> Specialist files (use these instead):
 > - specialists/code-reviewer.md
 > - specialists/security-reviewer.md
 > - specialists/performance-reviewer.md
