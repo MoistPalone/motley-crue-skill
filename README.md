@@ -1,15 +1,23 @@
 # The Motley Crue — Claude Code Skill
 
-A Claude Code CLI skill that acts as a full-stack development and project management team. It orchestrates 11 specialized sub-agents for code review, security analysis, performance profiling, dependency auditing, documentation writing, refactoring, architecture planning, debugging, test writing, wiki maintenance, and session handoffs.
+A modular Claude Code skill that orchestrates specialized sub-agents for full-stack development and project management. Built around durable project memory: every session leaves a clear trail in the wiki, project state, and handoff documents.
 
 **Ethos:** Plan the work, work the plan. Over deliver.
 
 ---
 
-## Prerequisites
+## Philosophy
 
-- [Claude Code](https://claude.ai/code) CLI installed and authenticated
-- Git (for most commands)
+The skill is a lightweight **dispatcher**, not a monolith. When invoked, only the coordinator loads (119 lines). Workflow instructions and specialist agent prompts are lazy-loaded on demand — you only pay for what you use.
+
+```
+SKILL.md            ← always loaded (dispatcher + required-output protocol)
+  └── workflows/    ← loaded per command (one file per command group)
+        └── specialists/  ← loaded per agent spawn (one file per role)
+              └── templates/    ← loaded when writing artifacts
+```
+
+This keeps context small and focused. A `review` run loads `SKILL.md` + `workflows/review.md` + `specialists/code-reviewer.md`. Nothing else.
 
 ---
 
@@ -22,105 +30,156 @@ cp motley-crue-skill/SKILL.md ~/.claude/skills/motley-crue/
 cp -r motley-crue-skill/references ~/.claude/skills/motley-crue/
 ```
 
-That's it. The skill registers automatically — you'll see `motley-crue` in the available skills list on your next Claude Code session.
+The skill registers automatically on the next Claude Code session.
 
 ---
 
-## Quick Start
+## Directory Structure
 
-Open any project in Claude Code and run:
+```
+SKILL.md                          # Dispatcher — always loaded
+references/
+  workflows/                      # One file per command group — loaded on demand
+    assess.md                     # assess, status, standup, portfolio
+    plan.md                       # plan, debug
+    assign.md                     # assign (task delegation + worktree setup)
+    review.md                     # review, security, perf, deps, refactor, test, docs
+    brief.md                      # brief, off
+    wiki-update.md                # wiki, wikiscan
+  specialists/                    # Agent prompt files — loaded when spawning
+    code-reviewer.md
+    security-reviewer.md
+    performance-reviewer.md
+    dependency-auditor.md
+    refactor-specialist.md
+    project-architect.md
+    debugging-specialist.md
+    test-writer.md
+    documentation-writer.md
+    wiki-maintainer.md
+    handoff-writer.md
+  templates/                      # Fill-in templates for required artifacts
+    project-state.md              # .claude/motley-crue.local.md
+    task-assignment.md            # Before agent spawn
+    worker-handoff.md             # After delegated work completes
+    assessment.md                 # assess output
+    wiki-update.md                # Structured wiki entries
+    roadmap-decomposition.md      # Breaking large features into agent tasks
+  wiki-protocol.md                # ABSORB / ASK / MEMSCAN rules
+  worktree-guide.md               # Git worktree isolation for parallel agents
+  agent-briefs.md                 # ⚠ DEPRECATED — use specialists/ instead
+```
+
+---
+
+## Required Artifacts
+
+Every meaningful workflow produces or updates a durable artifact, or explicitly reports why none was needed. Nothing silently exits.
+
+| Artifact | Template | When required |
+|----------|----------|---------------|
+| Project state | `templates/project-state.md` | Created on first `assess`; updated by most workflows |
+| Task assignment | `templates/task-assignment.md` | Before any agent is spawned via `assign` |
+| Worker handoff | `templates/worker-handoff.md` | After delegated work completes — all 11 fields mandatory |
+| Wiki update | `templates/wiki-update.md` | When something was learned, decided, or changed — not to confirm all is fine |
+| Assessment | `templates/assessment.md` | Every `assess` run |
+| Session brief | (handoff-writer output) | Every `brief` and `off` run |
+
+**No-op behavior:** If a review finds nothing, the specialist's closing block in the conversation states what was checked and why no wiki update was needed. That is the complete artifact — no wiki clutter.
+
+---
+
+## Worktrees
+
+When multiple coding agents work in parallel, each gets an isolated branch and worktree:
+
+```bash
+git worktree add ../AgentWork/<project>-<task-slug> branch-<task-slug>
+```
+
+Read-only agents (reviewer, security, debugger) can work in any worktree. Only coding agents (test-writer, docs-writer) need isolation. Track active worktrees in `.claude/motley-crue.local.md`. See `references/worktree-guide.md` for full rules.
+
+---
+
+## Typical Session
 
 ```
 /motley-crue assess
 ```
+→ Surveys project, creates `.claude/motley-crue.local.md` if missing, recommends next agents.
 
-This surveys the project, checks git state, and recommends which agents to deploy. It also creates a `.claude/motley-crue.local.md` state file in the project root to track your sprint and objectives.
+```
+/motley-crue plan add OAuth login
+```
+→ Spawns project-architect. Produces an ADR written to `<wiki_path>/decisions/`.
+
+```
+/motley-crue assign implement OAuth login
+```
+→ Fills out task assignment, creates worktree `branch-oauth-login`, writes task to wiki.
+→ User reviews assignment. Agent is spawned after confirmation.
+
+*(Agent completes work in the worktree.)*
+
+```
+/motley-crue review
+/motley-crue security
+```
+→ Code review and security pass. Each specialist ends with a handoff-compatible closing block.
+→ If critical findings: wiki update written. If clean: closing block in conversation is sufficient.
+
+```
+/motley-crue assign complete (worker handoff phase)
+```
+→ Agent fills out `templates/worker-handoff.md` (all 11 fields). Written to `<wiki_path>/handoffs/`.
+
+```
+/motley-crue off
+```
+→ Generates session brief. Appends wiki session summary. Updates project state.
 
 ---
 
 ## All Commands
 
-### Assessment & Status
-
 | Command | Alias | What it does |
 |---------|-------|-------------|
-| `/motley-crue assess` | — | Survey project, recommend agents. Default when no args given. |
-| `/motley-crue status` | `st` | Git state, sprint, open objectives, last brief date. |
-| `/motley-crue standup` | `sd` | Yesterday / today / blockers as a standup note. |
-| `/motley-crue standup all` | — | Cross-project standup (same as `portfolio`). |
-| `/motley-crue portfolio` | — | One-page status of all active projects with priority recommendation. |
-
-### Code Quality
-
-| Command | Alias | What it does |
-|---------|-------|-------------|
-| `/motley-crue review` | `rv` | Code review against current diff. High-confidence findings only. |
-| `/motley-crue security` | `sec` | Static security analysis — injection, secrets, auth gaps, prompt injection. |
-| `/motley-crue perf` | `pf` | Performance review — N+1 queries, memory leaks, blocking I/O. |
-| `/motley-crue refactor` | `rf` | Find duplication and extraction opportunities. Reports risk level. |
-| `/motley-crue deps` | `dp` | Dependency audit — outdated, vulnerable, redundant packages. |
-| `/motley-crue test` | `t` | Write tests for changed files. Mirrors existing test style. |
-
-### Documentation
-
-| Command | What it does |
-|---------|-------------|
-| `/motley-crue docs assess` | Find documentation gaps, recommend where to start. |
-| `/motley-crue docs readme` | Create or update README.md. |
-| `/motley-crue docs claude` | Create or update CLAUDE.md for cold-start onboarding. |
-| `/motley-crue docs api` | Generate docstrings for changed files. |
-| `/motley-crue docs inline` | Add WHY comments to changed files (never WHAT). |
-| `/motley-crue docs <path>` | Update documentation for a specific file. |
-
-### Planning & Debugging
-
-| Command | Alias | What it does |
-|---------|-------|-------------|
-| `/motley-crue plan <description>` | `pl` | Architecture Decision Record — context, decision, consequences, build checklist. |
-| `/motley-crue debug <error>` | `db` | Trace root cause, propose targeted fix. No workarounds. |
-
-### Wiki
-
-| Command | Alias | What it does |
-|---------|-------|-------------|
-| `/motley-crue wiki absorb <path>` | `w` | Ingest source files into wiki. |
-| `/motley-crue wiki ask <question>` | — | Answer a question from wiki knowledge. |
-| `/motley-crue wiki scan` | — | MEMSCAN on current project wiki section. |
-| `/motley-crue wikiscan` | `ws` | Full MEMSCAN across all wiki sections. |
-
-### Session Management
-
-| Command | Alias | What it does |
-|---------|-------|-------------|
-| `/motley-crue brief` | `br` | ≤400-word handoff block — commits, sprint, open items, next action. |
-| `/motley-crue off` | — | Close session — generates brief, writes wiki summary, marks objectives done. |
+| `assess` | — | Survey project, recommend agents, create/update project state |
+| `status` | `st` | Git state, sprint, objectives, wiki health |
+| `standup` | `sd` | Yesterday / today / blockers |
+| `portfolio` | — | Cross-project status of all active projects |
+| `plan` | `pl` | Architecture Decision Record — written to wiki |
+| `debug` | `db` | Root cause analysis — no workarounds |
+| `assign` | `as` | Task assignment + worktree setup (before); worker handoff (after) |
+| `review` | `rv` | Code review against current diff |
+| `security` | `sec` | Static security analysis |
+| `perf` | `pf` | Performance review — N+1, memory leaks, blocking I/O |
+| `deps` | `dp` | Dependency audit — outdated, vulnerable, redundant |
+| `refactor` | `rf` | Identify duplication and extraction opportunities |
+| `test` | `t` | Write tests mirroring existing style |
+| `docs` | `dc` | Update README, CLAUDE.md, API docs, or inline comments |
+| `brief` | `br` | ≤400-word session handoff block |
+| `off` | — | Close session — brief + wiki summary + project state update |
+| `wiki absorb <path>` | `w` | Ingest source files into wiki |
+| `wiki ask <question>` | — | Answer from wiki knowledge |
+| `wiki scan` | — | MEMSCAN on current project wiki section |
+| `wikiscan` | `ws` | Full MEMSCAN across all wiki sections |
 
 ---
 
 ## Customization
 
-### 1. Portfolio Project Paths
+### Portfolio Paths
 
-The `portfolio` command searches for `.claude/motley-crue.local.md` files across your projects. Open `~/.claude/skills/motley-crue/SKILL.md`, find the **PORTFOLIO Workflow** section, and add your own project paths:
+`portfolio` globs `~/**/.claude/motley-crue.local.md`. If this is too slow, open `references/workflows/assess.md` and add explicit paths to the PORTFOLIO section.
 
-```
-1. Search for all `.claude/motley-crue.local.md` state files across your project directories.
-   - `~/my-project/.claude/motley-crue.local.md`
-   - `~/another-project/.claude/motley-crue.local.md`
-   - Also glob `~/**/.claude/motley-crue.local.md` to catch any not listed
-```
+### Wiki Integration
 
-The glob fallback (`~/**/.claude/motley-crue.local.md`) will find any project that has already run `assess`, so you only need to add paths explicitly if the glob is too slow on your machine.
+If you use a Karpathy-style LLM wiki, replace `references/wiki-protocol.md` with your wiki's `CLAUDE.md`. Update `wiki_path` in any project's `.claude/motley-crue.local.md`.
 
-### 2. Wiki Integration (Optional)
+### Full-Time Mode Stop Hook
 
-If you use a Karpathy-style LLM wiki, update `~/.claude/skills/motley-crue/references/wiki-protocol.md` with your wiki's `CLAUDE.md` content. Then open `SKILL.md` and update any references to the wiki path to match your setup.
-
-If you don't use a wiki, the `wiki` and `wikiscan` commands still work — they'll scope to the current project directory.
-
-### 3. Full-Time Mode Stop Hook (Optional)
-
-For automatic session-end briefs, add this to `~/.claude/settings.json`:
+For automatic session-end prompts, add to `~/.claude/settings.json`:
 
 ```json
 {
@@ -141,70 +200,16 @@ For automatic session-end briefs, add this to `~/.claude/settings.json`:
 }
 ```
 
-Then set `mode: fulltime` in any project's `.claude/motley-crue.local.md` to activate it for that project.
-
----
-
-## State File
-
-Each project gets a `.claude/motley-crue.local.md` file (not git-tracked) created by `assess`:
-
-```markdown
----
-mode: oncall          # oncall | fulltime
-active: true
-project: MyProject
-wiki_path: ~/wiki/wiki/MyProject
-sprint: "current sprint description"
-last_brief: 2026-04-25
----
-
-## Active Objectives
-
-- [ ] Open item
-- [x] Completed item
-
-## Notes
-
-Session notes here.
-```
-
-Add `.claude/motley-crue.local.md` to your global `.gitignore` if you don't want it tracked:
-
-```bash
-echo ".claude/motley-crue.local.md" >> ~/.gitignore_global
-git config --global core.excludesfile ~/.gitignore_global
-```
-
----
-
-## Agent Roster
-
-11 specialists, each spawned with a full self-contained brief:
-
-| Agent | Command | Mode |
-|-------|---------|------|
-| Code Reviewer | `review` | read-only |
-| Security Reviewer | `security` | read-only |
-| Performance Reviewer | `perf` | read-only |
-| Dependency Auditor | `deps` | read-only |
-| Refactor Specialist | `refactor` | read-only |
-| Architecture Planner | `plan` | read-only |
-| Debugging Specialist | `debug` | read-only |
-| Test Writer | `test` | writes test files |
-| Documentation Writer | `docs` | writes doc files |
-| Wiki Maintenance | `wiki` / `wikiscan` | writes wiki files |
-| Brief Generator | `brief` | read-only |
+Then set `mode: fulltime` in any project's `.claude/motley-crue.local.md`.
 
 ---
 
 ## Limitations
 
-- Agents start cold — all context comes from the Pre-Flight brief assembled before each spawn
-- Security, perf, and refactor reviews are static only — no runtime analysis
-- `deps` security findings are bounded by the model's training cutoff
+- Agents start cold — the Project Brief assembled during Pre-Flight is their only context
+- Security, perf, and refactor reviews are static-only — no runtime or network analysis
+- `deps` CVE findings are bounded by the model's training cutoff — verify critical findings against current databases
 - Each agent spawn costs tokens — one agent per command by default
-- `/mc` is not a registered slash command alias — use `/motley-crue` or describe what you want in plain language
 
 ---
 

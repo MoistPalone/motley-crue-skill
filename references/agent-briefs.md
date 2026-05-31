@@ -1,8 +1,25 @@
-# Motley Crue — Agent Brief Templates
+# Motley Crue — Agent Brief Templates (Legacy Reference)
 
-Reference file loaded by SKILL.md when spawning sub-agents.
-Each section contains the full brief template for one specialist agent.
-Replace `[Project Brief from Pre-Flight]` and `[context]` placeholders before spawning.
+> **This file is superseded.** Agent briefs have been split into individual specialist files
+> under `references/specialists/`. SKILL.md now references those files directly.
+> This file is retained as a combined reference only. Do not load it as a whole — it is large.
+>
+> Specialist files:
+> - specialists/code-reviewer.md
+> - specialists/security-reviewer.md
+> - specialists/performance-reviewer.md
+> - specialists/dependency-auditor.md
+> - specialists/refactor-specialist.md
+> - specialists/project-architect.md
+> - specialists/debugging-specialist.md
+> - specialists/test-writer.md
+> - specialists/documentation-writer.md
+> - specialists/wiki-maintainer.md
+> - specialists/handoff-writer.md
+
+---
+
+Original combined reference (preserved below for backward compatibility):
 
 ---
 
